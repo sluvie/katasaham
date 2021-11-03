@@ -1,0 +1,7 @@
+saham (katasaham)
+
+- buat master emiten
+- buat watchlist
+- buat daftar buy dan sell
+- buat prediksi RSI untuk buy dan sell
+- buat laporan profit

@@ -1,0 +1,16 @@
+{
+  "name": "katasaham",
+  "version": "1.0.0",
+  "description": "Portfolio Tracker Saham Indonesia",
+  "main": "index.html",
+  "scripts": {
+    "start": "browser-sync start --server --files \"*.html, *.css, js/*.js\" --port 3000",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "browser-sync": "^3.0.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}

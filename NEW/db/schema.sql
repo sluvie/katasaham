@@ -65,3 +65,19 @@ INSERT INTO emitens (ticker, name, industry_id) VALUES
 INSERT INTO fee_settings (buy_fee, sell_fee, effective_from) VALUES (0.15, 0.25, '2000-01-01');
 
 INSERT INTO settings (key, value) VALUES ('gs_link', '');
+
+-- 7. Master table for Emiten list imported from daftar_emiten.xlsx
+CREATE TABLE emiten_master (
+    id SERIAL PRIMARY KEY,
+    raw_no INTEGER,
+    kode VARCHAR(20) UNIQUE NOT NULL,
+    nama_perusahaan TEXT NOT NULL,
+    tanggal_pencatatan DATE,
+    saham BIGINT,
+    papan_pencatatan VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index to speed lookups by kode
+CREATE INDEX ON emiten_master (kode);
+

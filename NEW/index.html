@@ -27,14 +27,38 @@
                 <button data-page="dividends" class="nav-link">Dividen</button>
                 <button data-page="dca" class="nav-link">DCA Advisor</button>
                 <button data-page="reports" class="nav-link">Laporan</button>
+                <button data-page="management" class="nav-link">Manajemen</button>
+                <button data-page="user-management" class="nav-link" id="nav-user-management" style="display:none;">Users</button>
                 <button data-page="settings" class="nav-link">Pengaturan</button>
             </nav>
-            <div class="period-selector">
-                <select id="active-period">
-                    <option value="2025">2025</option>
-                    <option value="2026">2026</option>
-                    <option value="all">Semua Periode</option>
-                </select>
+            <div class="selectors-container" style="display: flex; gap: 1rem; align-items: center;">
+                <div class="account-selector">
+                    <select id="active-account">
+                        <!-- Accounts will be injected here -->
+                    </select>
+                </div>
+                <div class="period-selector">
+                    <select id="active-period">
+                        <option value="2025">2025</option>
+                        <option value="2026">2026</option>
+                        <option value="all">Semua Periode</option>
+                    </select>
+                </div>
+                
+                <div class="user-profile-dropdown" id="user-profile-dropdown" style="display:none;">
+                    <button class="profile-toggle" id="profile-toggle">
+                        <span id="user-initials">?</span>
+                    </button>
+                    <div class="dropdown-menu" id="profile-menu">
+                        <div class="menu-user-info">
+                            <strong id="menu-user-name">User</strong>
+                            <span id="menu-user-role" class="badge neutral">Role</span>
+                        </div>
+                        <hr>
+                        <button class="dropdown-item nav-link" data-page="settings">Pengaturan Profil</button>
+                        <button class="dropdown-item logout-btn" id="header-logout-btn">Keluar (Logout)</button>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -49,6 +73,7 @@
     </div>
 
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
     <script type="module" src="js/app.js"></script>
 </body>
 </html>

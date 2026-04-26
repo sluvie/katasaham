@@ -2,21 +2,32 @@
 // core calculations for KataSaham
 
 export const Logic = {
-    getEffectiveFee: (date, feeSettings) => {
+    getEffectiveFee: (date, feeSettings, accountId) => {
         const txDate = new Date(date);
-        return feeSettings.find(fee => {
+        const accountFees = feeSettings.filter(f => !f.accountId || f.accountId === accountId);
+        
+        // Find fee that matches the date range
+        const matchingFee = accountFees.find(fee => {
             const from = new Date(fee.effectiveFrom);
             const to = fee.effectiveTo ? new Date(fee.effectiveTo) : new Date('2099-12-31');
             return txDate >= from && txDate <= to;
-        }) || feeSettings[0];
+        });
+
+        return matchingFee || accountFees[accountFees.length - 1] || feeSettings[0];
     },
 
-    processPortfolio: (transactions, feeSettings, dividends = [], filterYear = 'all') => {
+    processPortfolio: (transactions, feeSettings, dividends = [], filterYear = 'all', filterAccountId = 'all') => {
         const portfolio = {}; // ticker -> { qty, avgPrice, totalCost, realizedProfit, dividends }
         const yearlyReports = {}; // year -> { realizedProfit, turnover, dividends }
 
+        // Filter by Account if specified
+        let filteredTx = transactions;
+        if (filterAccountId !== 'all') {
+            filteredTx = transactions.filter(tx => tx.accountId === filterAccountId);
+        }
+
         // Sort by date to process chronologically
-        const sortedTx = [...transactions].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedTx = [...filteredTx].sort((a, b) => new Date(a.date) - new Date(b.date));
 
         sortedTx.forEach(tx => {
             const year = new Date(tx.date).getFullYear().toString();
@@ -35,7 +46,7 @@ export const Logic = {
             }
 
             const p = portfolio[tx.emiten];
-            const fees = Logic.getEffectiveFee(tx.date, feeSettings);
+            const fees = Logic.getEffectiveFee(tx.date, feeSettings, tx.accountId);
             const feeRate = tx.type === 'BUY' ? fees.buyFee : fees.sellFee;
             const feeValue = (tx.price * tx.quantity) * (feeRate / 100);
 
@@ -61,8 +72,10 @@ export const Logic = {
             yearlyReports[year].monthly[monthYear].turnover += (tx.price * tx.quantity);
         });
 
-        // Add Dividends
-        dividends.forEach(div => {
+        // Filter and Process Dividends
+        const filteredDivs = filterAccountId === 'all' ? dividends : dividends.filter(d => d.accountId === filterAccountId);
+
+        filteredDivs.forEach(div => {
             const year = new Date(div.cumDate).getFullYear().toString();
             if (!yearlyReports[year]) yearlyReports[year] = { realizedProfit: 0, turnover: 0, dividends: 0 };
             

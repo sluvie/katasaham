@@ -6,13 +6,6 @@ CREATE TABLE industries (
     name VARCHAR(50) UNIQUE NOT NULL
 );
 
--- 2. Table for Emitens (Tickers)
-CREATE TABLE emitens (
-    ticker VARCHAR(10) PRIMARY KEY,
-    name VARCHAR(255) NOT NULL,
-    industry_id INTEGER REFERENCES industries(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
 
 -- 3. Table for Fee Settings
 CREATE TABLE fee_settings (
@@ -24,11 +17,48 @@ CREATE TABLE fee_settings (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 8. Table for Users
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role VARCHAR(20) DEFAULT 'USER' CHECK (role IN ('ADMIN', 'USER')),
+    status VARCHAR(20) DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')),
+    name VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 9. Table for Accounts
+CREATE TABLE accounts (
+    id VARCHAR(50) PRIMARY KEY,
+    user_id INTEGER REFERENCES users(id),
+    name VARCHAR(100) NOT NULL,
+    broker VARCHAR(100),
+    color VARCHAR(20),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 7. Master table for Emiten list imported from daftar_emiten.xlsx
+CREATE TABLE emiten_master (
+    id SERIAL PRIMARY KEY,
+    raw_no INTEGER,
+    kode VARCHAR(20) UNIQUE NOT NULL,
+    nama_perusahaan TEXT NOT NULL,
+    tanggal_pencatatan DATE,
+    saham BIGINT,
+    papan_pencatatan VARCHAR(100),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Index to speed lookups by kode
+CREATE INDEX ON emiten_master (kode);
+
 -- 4. Table for Transactions
 CREATE TABLE transactions (
     id SERIAL PRIMARY KEY,
+    account_id VARCHAR(50) REFERENCES accounts(id),
     tx_date DATE NOT NULL,
-    emiten_ticker VARCHAR(10) REFERENCES emitens(ticker),
+    emiten_ticker VARCHAR(20) REFERENCES emiten_master(kode),
     type VARCHAR(10) CHECK (type IN ('BUY', 'SELL')),
     quantity INTEGER NOT NULL, -- in shares
     price DECIMAL(15, 2) NOT NULL,
@@ -39,7 +69,8 @@ CREATE TABLE transactions (
 -- 5. Table for Dividends
 CREATE TABLE dividends (
     id SERIAL PRIMARY KEY,
-    emiten_ticker VARCHAR(10) REFERENCES emitens(ticker),
+    account_id VARCHAR(50) REFERENCES accounts(id),
+    emiten_ticker VARCHAR(20) REFERENCES emiten_master(kode),
     cum_date DATE NOT NULL,
     value_per_share DECIMAL(15, 2) NOT NULL,
     total_received DECIMAL(15, 2),
@@ -57,27 +88,7 @@ CREATE TABLE settings (
 -- Seed Initial Data
 INSERT INTO industries (name) VALUES ('Banking'), ('Industrial'), ('Technology'), ('Consumer'), ('Energy');
 
-INSERT INTO emitens (ticker, name, industry_id) VALUES 
-('BBCA', 'Bank Central Asia', 1),
-('ASII', 'Astra International', 2),
-('TLKM', 'Telkom Indonesia', 3);
-
 INSERT INTO fee_settings (buy_fee, sell_fee, effective_from) VALUES (0.15, 0.25, '2000-01-01');
 
 INSERT INTO settings (key, value) VALUES ('gs_link', '');
-
--- 7. Master table for Emiten list imported from daftar_emiten.xlsx
-CREATE TABLE emiten_master (
-    id SERIAL PRIMARY KEY,
-    raw_no INTEGER,
-    kode VARCHAR(20) UNIQUE NOT NULL,
-    nama_perusahaan TEXT NOT NULL,
-    tanggal_pencatatan DATE,
-    saham BIGINT,
-    papan_pencatatan VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index to speed lookups by kode
-CREATE INDEX ON emiten_master (kode);
 

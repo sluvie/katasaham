@@ -1,4 +1,4 @@
-// js/logic.js
+// src/utils/logic.js
 // core calculations for KataSaham
 
 export const Logic = {
@@ -8,8 +8,8 @@ export const Logic = {
         
         // Find fee that matches the date range
         const matchingFee = accountFees.find(fee => {
-            const from = new Date(fee.effectiveFrom);
-            const to = fee.effectiveTo ? new Date(fee.effectiveTo) : new Date('2099-12-31');
+            const from = new Date(fee.effective_from || fee.effectiveFrom);
+            const to = (fee.effective_to || fee.effectiveTo) ? new Date(fee.effective_to || fee.effectiveTo) : new Date('2099-12-31');
             return txDate >= from && txDate <= to;
         });
 
@@ -23,31 +23,34 @@ export const Logic = {
         // Filter by Account if specified
         let filteredTx = transactions;
         if (filterAccountId !== 'all') {
-            filteredTx = transactions.filter(tx => tx.accountId === filterAccountId);
+            filteredTx = transactions.filter(tx => tx.account_id === filterAccountId || tx.accountId === filterAccountId);
         }
 
         // Sort by date to process chronologically
-        const sortedTx = [...filteredTx].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const sortedTx = [...filteredTx].sort((a, b) => new Date(a.tx_date || a.date) - new Date(b.tx_date || b.date));
 
         sortedTx.forEach(tx => {
-            const year = new Date(tx.date).getFullYear().toString();
+            const dateStr = tx.tx_date || tx.date;
+            const emiten = tx.emiten_ticker || tx.emiten;
+            const year = new Date(dateStr).getFullYear().toString();
+            
             if (!yearlyReports[year]) {
                 yearlyReports[year] = { realizedProfit: 0, turnover: 0, dividends: 0 };
             }
 
-            const monthYear = `${year}-${(new Date(tx.date).getMonth() + 1).toString().padStart(2, '0')}`;
+            const monthYear = `${year}-${(new Date(dateStr).getMonth() + 1).toString().padStart(2, '0')}`;
             if (!yearlyReports[year].monthly) yearlyReports[year].monthly = {};
             if (!yearlyReports[year].monthly[monthYear]) {
                 yearlyReports[year].monthly[monthYear] = { realizedProfit: 0, turnover: 0, dividends: 0 };
             }
 
-            if (!portfolio[tx.emiten]) {
-                portfolio[tx.emiten] = { qty: 0, avgPrice: 0, totalCost: 0, realizedProfit: 0, dividends: 0 };
+            if (!portfolio[emiten]) {
+                portfolio[emiten] = { qty: 0, avgPrice: 0, totalCost: 0, realizedProfit: 0, dividends: 0 };
             }
 
-            const p = portfolio[tx.emiten];
-            const fees = Logic.getEffectiveFee(tx.date, feeSettings, tx.accountId);
-            const feeRate = tx.type === 'BUY' ? fees.buyFee : fees.sellFee;
+            const p = portfolio[emiten];
+            const fees = Logic.getEffectiveFee(dateStr, feeSettings, tx.account_id || tx.accountId);
+            const feeRate = tx.type === 'BUY' ? fees.buy_fee || fees.buyFee : fees.sell_fee || fees.sellFee;
             const feeValue = (tx.price * tx.quantity) * (feeRate / 100);
 
             if (tx.type === 'BUY') {
@@ -73,18 +76,32 @@ export const Logic = {
         });
 
         // Filter and Process Dividends
-        const filteredDivs = filterAccountId === 'all' ? dividends : dividends.filter(d => d.accountId === filterAccountId);
+        const filteredDivs = filterAccountId === 'all' ? dividends : dividends.filter(d => d.account_id === filterAccountId || d.accountId === filterAccountId);
 
         filteredDivs.forEach(div => {
-            const year = new Date(div.cumDate).getFullYear().toString();
+            const year = new Date(div.cum_date || div.cumDate).getFullYear().toString();
             if (!yearlyReports[year]) yearlyReports[year] = { realizedProfit: 0, turnover: 0, dividends: 0 };
             
-            if (portfolio[div.emiten]) {
-                portfolio[div.emiten].dividends += div.totalReceived;
-                portfolio[div.emiten].realizedProfit += div.totalReceived;
-                yearlyReports[year].dividends += div.totalReceived;
-                yearlyReports[year].realizedProfit += div.totalReceived;
+            const emiten = div.emiten_ticker || div.emiten;
+            if (!portfolio[emiten]) {
+                portfolio[emiten] = { qty: 0, avgPrice: 0, totalCost: 0, realizedProfit: 0, dividends: 0 };
             }
+
+            const monthYear = `${year}-${(new Date(div.cum_date || div.cumDate).getMonth() + 1).toString().padStart(2, '0')}`;
+            if (!yearlyReports[year].monthly) yearlyReports[year].monthly = {};
+            if (!yearlyReports[year].monthly[monthYear]) {
+                yearlyReports[year].monthly[monthYear] = { realizedProfit: 0, turnover: 0, dividends: 0 };
+            }
+
+            const divAmount = Number(div.total_received || div.totalReceived || 0);
+            portfolio[emiten].dividends += divAmount;
+            portfolio[emiten].realizedProfit += divAmount;
+            
+            yearlyReports[year].dividends += divAmount;
+            yearlyReports[year].realizedProfit += divAmount;
+            
+            yearlyReports[year].monthly[monthYear].dividends += divAmount;
+            yearlyReports[year].monthly[monthYear].realizedProfit += divAmount;
         });
 
         return { portfolio, yearlyReports };
@@ -105,7 +122,7 @@ export const Logic = {
         return new Intl.NumberFormat('id-ID', {
             style: 'currency',
             currency: 'IDR',
-            maximumFractionDigits: 0
+            maximumFractionDigits: 2
         }).format(num);
     }
 };

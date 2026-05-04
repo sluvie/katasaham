@@ -10,8 +10,10 @@ import {
   Menu, 
   X,
   PieChart,
+  BarChart3,
   User as UserIcon,
-  ChevronDown
+  ChevronDown,
+  Calculator
 } from 'lucide-react';
 
 const Layout = ({ children }) => {
@@ -24,7 +26,9 @@ const Layout = ({ children }) => {
   const menuItems = [
     { name: 'Dashboard', icon: LayoutDashboard, path: '/' },
     { name: 'Transaksi', icon: History, path: '/transactions' },
+    { name: 'Rekap Emiten', icon: BarChart3, path: '/history' },
     { name: 'Dividen', icon: PieChart, path: '/dividends' },
+    { name: 'Simulasi', icon: Calculator, path: '/simulation' },
     { name: 'Manajemen', icon: Wallet, path: '/management' },
     { name: 'Pengaturan', icon: Settings, path: '/settings' },
   ];

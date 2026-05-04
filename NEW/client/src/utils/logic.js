@@ -95,13 +95,13 @@ export const Logic = {
 
             const divAmount = Number(div.total_received || div.totalReceived || 0);
             portfolio[emiten].dividends += divAmount;
-            portfolio[emiten].realizedProfit += divAmount;
+            // portfolio[emiten].realizedProfit += divAmount; // Removed: only buy/sell transactions
             
             yearlyReports[year].dividends += divAmount;
-            yearlyReports[year].realizedProfit += divAmount;
+            // yearlyReports[year].realizedProfit += divAmount; // Removed: only buy/sell transactions
             
             yearlyReports[year].monthly[monthYear].dividends += divAmount;
-            yearlyReports[year].monthly[monthYear].realizedProfit += divAmount;
+            // yearlyReports[year].monthly[monthYear].realizedProfit += divAmount; // Removed: only buy/sell transactions
         });
 
         return { portfolio, yearlyReports };

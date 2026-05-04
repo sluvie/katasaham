@@ -83,8 +83,22 @@ const Dashboard = () => {
         <StatCard 
           label={`Profit Realisasi (${activeYear})`}
           value={Logic.formatIDR(report.realizedProfit)}
-          subValue="Berdasarkan transaksi jual & dividen"
+          subValue="Berdasarkan transaksi jual"
           type={report.realizedProfit >= 0 ? 'success' : 'danger'}
+          icon={TrendingUp}
+        />
+        <StatCard 
+          label={`Dividen (${activeYear})`}
+          value={Logic.formatIDR(report.dividends)}
+          subValue="Dividen diterima tahun ini"
+          type="info"
+          icon={BarChart3}
+        />
+        <StatCard 
+          label="Profit Floating (Unrealized)"
+          value={Logic.formatIDR(totalFloatingProfit)}
+          subValue="Potensi profit dari posisi terbuka"
+          type={totalFloatingProfit >= 0 ? 'success' : 'danger'}
           icon={TrendingUp}
         />
         <StatCard 
@@ -95,16 +109,9 @@ const Dashboard = () => {
           icon={DollarSign}
         />
         <StatCard 
-          label="Profit Floating (Unrealized)"
-          value={Logic.formatIDR(totalFloatingProfit)}
-          subValue="Potensi profit dari posisi terbuka"
-          type={totalFloatingProfit >= 0 ? 'success' : 'danger'}
-          icon={TrendingUp}
-        />
-        <StatCard 
-          label="Total Dividen"
+          label="Total Dividen (Global)"
           value={Logic.formatIDR(totalDivGlobal)}
-          subValue="Pendapatan pasif yang diterima"
+          subValue="Total pendapatan pasif"
           type="info"
           icon={BarChart3}
         />

@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import Management from './pages/Management';
 import Dividends from './pages/Dividends';
+import EmitenHistory from './pages/EmitenHistory';
+import Simulation from './pages/Simulation';
 import Layout from './components/Layout';
 
 const PrivateRoute = ({ children }) => {
@@ -31,6 +33,8 @@ function App() {
                     <Route path="/" element={<Dashboard />} />
                     <Route path="/transactions" element={<Transactions />} />
                     <Route path="/dividends" element={<Dividends />} />
+                    <Route path="/history" element={<EmitenHistory />} />
+                    <Route path="/simulation" element={<Simulation />} />
                     <Route path="/management" element={<Management />} />
                     <Route path="/settings" element={<div className="text-slate-500 italic p-10 bg-slate-900/50 rounded-3xl border border-slate-800">Halaman Pengaturan akan segera hadir.</div>} />
                   </Routes>

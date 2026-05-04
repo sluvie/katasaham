@@ -17,7 +17,8 @@ const Dashboard = () => {
     transactions: [],
     dividends: [],
     feeSettings: [],
-    accounts: []
+    accounts: [],
+    emitens: []
   });
   const [loading, setLoading] = useState(true);
   const [activeYear, setActiveYear] = useState(new Date().getFullYear().toString());
@@ -29,18 +30,20 @@ const Dashboard = () => {
   const fetchAllData = async () => {
     try {
       setLoading(true);
-      const [txRes, divRes, feeRes, accRes] = await Promise.all([
+      const [txRes, divRes, feeRes, accRes, emRes] = await Promise.all([
         axios.get('/api/transactions'),
         axios.get('/api/dividends'),
         axios.get('/api/fee-settings'),
-        axios.get('/api/accounts')
+        axios.get('/api/accounts'),
+        axios.get('/api/emitens')
       ]);
 
       setData({
         transactions: txRes.data,
         dividends: divRes.data,
         feeSettings: feeRes.data,
-        accounts: accRes.data
+        accounts: accRes.data,
+        emitens: emRes.data
       });
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
@@ -57,7 +60,21 @@ const Dashboard = () => {
   const totalProfitGlobal = Object.values(portfolioData.yearlyReports).reduce((acc, curr) => acc + curr.realizedProfit, 0);
   const totalDivGlobal = Object.values(portfolioData.yearlyReports).reduce((acc, curr) => acc + curr.dividends, 0);
   
+  const lastPriceMap = data.emitens.reduce((acc, em) => {
+    acc[em.ticker] = em.last_price;
+    return acc;
+  }, {});
+
   const activeStocks = Object.keys(portfolioData.portfolio).filter(ticker => portfolioData.portfolio[ticker].qty > 0);
+
+  const totalFloatingProfit = activeStocks.reduce((acc, ticker) => {
+    const p = portfolioData.portfolio[ticker];
+    const lastPrice = lastPriceMap[ticker] || 0;
+    if (lastPrice > 0) {
+      return acc + ((lastPrice - p.avgPrice) * p.qty);
+    }
+    return acc;
+  }, 0);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -76,6 +93,13 @@ const Dashboard = () => {
           subValue="Total profit sejak awal"
           type={totalProfitGlobal >= 0 ? 'success' : 'danger'}
           icon={DollarSign}
+        />
+        <StatCard 
+          label="Profit Floating (Unrealized)"
+          value={Logic.formatIDR(totalFloatingProfit)}
+          subValue="Potensi profit dari posisi terbuka"
+          type={totalFloatingProfit >= 0 ? 'success' : 'danger'}
+          icon={TrendingUp}
         />
         <StatCard 
           label="Total Dividen"
@@ -108,7 +132,8 @@ const Dashboard = () => {
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest">Emiten</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Jumlah</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Avg Price</th>
-                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Modal Total</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Last Price</th>
+                    <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Profit Floating</th>
                     <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-widest text-right">Profit Realized</th>
                   </tr>
                 </thead>
@@ -122,7 +147,23 @@ const Dashboard = () => {
                         </td>
                         <td className="px-6 py-4 text-right text-slate-300">{(p.qty/100).toLocaleString()} <span className="text-[10px] text-slate-500 font-bold ml-1">LOT</span></td>
                         <td className="px-6 py-4 text-right text-slate-300 font-medium">{Logic.formatIDR(p.avgPrice)}</td>
-                        <td className="px-6 py-4 text-right text-slate-300">{Logic.formatIDR(p.totalCost)}</td>
+                        <td className="px-6 py-4 text-right text-slate-300">
+                          {lastPriceMap[ticker] ? Logic.formatIDR(lastPriceMap[ticker]) : '-'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {lastPriceMap[ticker] ? (
+                            <div className="flex flex-col items-end">
+                              <span className={`font-bold ${lastPriceMap[ticker] >= p.avgPrice ? 'text-emerald-400' : 'text-red-400'}`}>
+                                {Logic.formatIDR((lastPriceMap[ticker] - p.avgPrice) * p.qty)}
+                              </span>
+                              <span className={`text-[10px] font-bold ${lastPriceMap[ticker] >= p.avgPrice ? 'text-emerald-500/60' : 'text-red-500/60'}`}>
+                                {(((lastPriceMap[ticker] - p.avgPrice) / p.avgPrice) * 100).toFixed(2)}%
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-slate-600 italic text-xs">No Data</span>
+                          )}
+                        </td>
                         <td className={`px-6 py-4 text-right font-bold ${p.realizedProfit >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                           {Logic.formatIDR(p.realizedProfit)}
                         </td>
@@ -130,7 +171,7 @@ const Dashboard = () => {
                     );
                   }) : (
                     <tr>
-                      <td colSpan="5" className="px-6 py-12 text-center text-slate-500 italic">
+                      <td colSpan="6" className="px-6 py-12 text-center text-slate-500 italic">
                         Belum ada posisi terbuka. Tambahkan transaksi untuk mulai memantau.
                       </td>
                     </tr>

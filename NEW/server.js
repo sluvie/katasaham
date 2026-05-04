@@ -244,6 +244,34 @@ app.delete('/api/transactions/:id', authenticateToken, async (req, res) => {
     }
 });
 
+app.put('/api/transactions/:id', authenticateToken, async (req, res) => {
+    const { account_id, tx_date, emiten_ticker, type, quantity, price, fee_applied } = req.body;
+    try {
+        // Verify transaction exists and belongs to user
+        const check = await db.query(`
+            SELECT t.id FROM transactions t
+            JOIN accounts a ON t.account_id = a.id
+            WHERE t.id = $1 AND a.user_id = $2
+        `, [req.params.id, req.user.id]);
+        
+        if (check.rows.length === 0) return res.status(403).json({ error: 'Unauthorized' });
+
+        // Verify target account ownership
+        const accCheck = await db.query('SELECT id FROM accounts WHERE id = $1 AND user_id = $2', [account_id, req.user.id]);
+        if (accCheck.rows.length === 0) return res.status(403).json({ error: 'Unauthorized account' });
+
+        const result = await db.query(`
+            UPDATE transactions 
+            SET account_id = $1, tx_date = $2, emiten_ticker = $3, type = $4, quantity = $5, price = $6, fee_applied = $7
+            WHERE id = $8 RETURNING *
+        `, [account_id, tx_date, emiten_ticker, type, quantity, price, fee_applied, req.params.id]);
+        
+        res.json(result.rows[0]);
+    } catch (err) {
+        handleQueryError(res, err);
+    }
+});
+
 // --- DIVIDEND ROUTES ---
 app.get('/api/dividends', authenticateToken, async (req, res) => {
     try {
@@ -387,15 +415,89 @@ app.get('/api/fee-settings', authenticateToken, async (req, res) => {
 // --- MASTER DATA ---
 app.get('/api/emitens', async (req, res) => {
     try {
-        const result = await db.query('SELECT kode as ticker, nama_perusahaan as name, papan_pencatatan as board FROM emiten_master ORDER BY kode ASC');
+        const result = await db.query('SELECT kode as ticker, nama_perusahaan as name, papan_pencatatan as board, last_price FROM emiten_master ORDER BY kode ASC');
         res.json(result.rows);
     } catch (err) {
         handleQueryError(res, err);
     }
 });
 
+// --- PRICE SYNC LOGIC ---
+const PRICE_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQd39zS7n02SIZHqMzK05IaRm9sOuOUFp0aISWPA9hnwxwsuwTFljuIlYAfDeoU9tDh1aJ1AtqOMo-P/pub?gid=0&single=true&output=csv';
 
-// 404 for any other API route
+const syncEmitenPrices = async () => {
+    console.log(`[${new Date().toISOString()}] Starting price sync from Google Sheets...`);
+    try {
+        const response = await fetch(PRICE_CSV_URL);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const csvText = await response.text();
+        
+        // Simple CSV Parser (skipping header)
+        const lines = csvText.split('\n');
+        let updateCount = 0;
+
+        for (let i = 1; i < lines.length; i++) {
+            const line = lines[i].trim();
+            if (!line) continue;
+
+            const parts = line.split(',');
+            if (parts.length < 3) continue;
+
+            const ticker = parts[0].trim().toUpperCase();
+            const price = parseFloat(parts[2].trim());
+
+            if (ticker && !isNaN(price)) {
+                await db.query(
+                    'UPDATE emiten_master SET last_price = $1, last_price_updated = CURRENT_TIMESTAMP WHERE kode = $2',
+                    [price, ticker]
+                );
+                updateCount++;
+            }
+        }
+        console.log(`[${new Date().toISOString()}] Price sync completed. Updated ${updateCount} emitens.`);
+        return { success: true, updated: updateCount };
+    } catch (err) {
+        console.error('Price Sync Error:', err);
+        return { success: false, error: err.message };
+    }
+};
+
+// Admin endpoint to trigger manual sync
+app.post('/api/admin/sync-prices', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'ADMIN') return res.sendStatus(403);
+    const result = await syncEmitenPrices();
+    if (result.success) {
+        res.json({ message: `Sync successful. Updated ${result.updated} records.` });
+    } else {
+        res.status(500).json({ error: result.error });
+    }
+});
+
+// Scheduler logic (Every 2 hours between 09:00 - 16:00 WIB)
+// WIB is UTC+7. 09:00 WIB = 02:00 UTC. 16:00 WIB = 09:00 UTC.
+const startPriceSyncScheduler = () => {
+    // Check every hour
+    setInterval(async () => {
+        const now = new Date();
+        const hourWIB = (now.getUTCHours() + 7) % 24;
+        
+        // Only sync between 09:00 and 16:00 WIB
+        // And we want "every 2 hours", so we can check if hourWIB is even or something similar.
+        // For simplicity, we'll sync at 9, 11, 13, 15 WIB.
+        const syncHours = [9, 11, 13, 15];
+        
+        // We also need to make sure we don't sync multiple times in the same hour.
+        // A simple way is to check the minutes. If it's between 0 and 5 minutes of the hour.
+        if (syncHours.includes(hourWIB) && now.getUTCMinutes() < 5) {
+            await syncEmitenPrices();
+        }
+    }, 60 * 1000); // Check every minute
+    
+    console.log('Price sync scheduler started (09:00-16:00 WIB, every 2h)');
+};
+
+// Run scheduler
+startPriceSyncScheduler();
 app.use('/api/*', (req, res) => {
     res.status(404).json({ error: 'API route not found' });
 });
